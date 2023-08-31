@@ -46,9 +46,13 @@ const createUser = async (req, res, next) => {
       [username, hashed_password, salt, user_role]
     );
 
-    const token = jwt.sign({ id: result.rows[0].id, role: user_role }, process.env.SECRET, {
-      expiresIn: 86400, //24 horas
-    });
+    const token = jwt.sign(
+      { id: result.rows[0].id, role: user_role },
+      process.env.SECRET,
+      {
+        expiresIn: 86400, //24 horas
+      }
+    );
 
     res.json({ token });
   } catch (error) {
@@ -60,7 +64,10 @@ const deleteUser = async (req, res, next) => {
   const user_id = req.params.id;
 
   try {
-    const result = await pool.query("DELETE FROM users WHERE user_id = $1 RETURNING *;", [user_id]);
+    const result = await pool.query(
+      "DELETE FROM users WHERE user_id = $1 RETURNING *;",
+      [user_id]
+    );
 
     if (result.rowCount === 0)
       return res.status(404).json({
@@ -73,9 +80,32 @@ const deleteUser = async (req, res, next) => {
   }
 };
 
+const updateUser = async (req, res, next) => {
+  const { username, password, user_role, user_id } = req.body;
+
+  try {
+
+    const { salt, hashed_password } = encryptPassword(password);
+
+    const result = await pool.query(
+      "UPDATE users SET username = $1, hashed_password = $2, password_salt = $3, user_role = $4 WHERE id = $5 RETURNING *;",
+      [username, hashed_password, salt, user_role, user_id]
+    );
+
+    if (result.rowCount === 0)
+      return res.status(404).json({
+        message: "user not found",
+      });
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUser,
   createUser,
-  deleteUser
+  deleteUser,
 };
